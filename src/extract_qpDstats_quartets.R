@@ -1,4 +1,4 @@
-source("src/abba/abba.R")
+source("src/baba/baba.R")
 args <- commandArgs(trailingOnly=TRUE)
 
 args[1] %>%

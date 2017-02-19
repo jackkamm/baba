@@ -1,4 +1,4 @@
-from abba import quartet_tensor
+from baba import quartet_tensor
 
 infile = "data/scratch/newhumori_18pops.qpDstats.dataframe.with_BBAA.txt"
 

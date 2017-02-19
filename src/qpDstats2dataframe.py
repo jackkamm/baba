@@ -1,4 +1,4 @@
 #!/usr/bin/env python3
 import sys
-from src import qpDstats_output
+from abba import qpDstats_output
 qpDstats_output(sys.stdin).write_data_frame(None)

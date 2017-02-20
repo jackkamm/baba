@@ -1,6 +1,6 @@
 library(dplyr)
 
-extract_qpDstats_quartets <- function(qpDstats_table_filename){
+extract_qpDstats_quartets_all <- function(qpDstats_table_filename){
   qp.df.all <- read.table(qpDstats_table_filename,
                       col.names = c("X","Y","Z","A", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
                       stringsAsFactors = F) %>%
@@ -27,11 +27,8 @@ extract_qpDstats_quartets <- function(qpDstats_table_filename){
     inner_join(x=qp.df.all)
 }
 
-sort.pops.bbaa <- function(df, x, y, a){
-  c(x, y,
-    df %>%
-      filter(BBAA > BABA, BBAA > ABBA, X == x, Y == y, A == a) %>%
-      with(structure(BBAA, names=Z)) %>%
-      sort() %>% names(),
-    a)
-}
+args <- commandArgs(trailingOnly=TRUE)
+
+args[1] %>%
+  extract_qpDstats_quartets_all() %>%
+  write.table(args[2], row.names=F, quote=F)

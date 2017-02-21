@@ -1,11 +1,11 @@
 library(dplyr)
 library(ggplot2)
 
-sort.pops.bbaa <- function(quartets.df, x, y, a){
-  c(x, y,
+sort.pops.bbaa <- function(quartets.df, pop1, pop2, pop4){
+  c(pop1, pop2,
     quartets.df %>%
-      filter(BBAA > BABA, BBAA > ABBA, X == x, Y == y, A == a) %>%
-      with(structure(BBAA, names=Z)) %>%
+      filter(BBAA > BABA, BBAA > ABBA, Pop1 == pop1, Pop2 == pop2, Pop4 == pop4) %>%
+      with(structure(BBAA, names=Pop3)) %>%
       sort() %>% names(),
-    a)
+    pop4)
 }

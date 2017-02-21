@@ -32,28 +32,28 @@ run.sort.pops.bbaa <- function(df.filename, x, y, a){
 
 extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename){
   qp.df.all <- read.table(qpDstats_cleaned_output,
-                      col.names = c("X","Y","Z","A", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
+                      col.names = c("Pop1","Pop2","Pop3","Pop4", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
                       stringsAsFactors = F) %>%
     ## drop is_best parameter, it is not a good indication of topology (allows "topologies" BBAA < ABBA,BABA)
-    select(X, Y, Z, A, Z.score, BABA, ABBA, n.snps)
+    select(Pop1, Pop2, Pop3, Pop4, Z.score, BABA, ABBA, n.snps)
 
   ## duplicate rows for all permutations
   qp.df.all <- qp.df.all %>%
     bind_rows(qp.df.all %>%
-                transform(X=Y, Y=X, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
+                transform(Pop1=Pop2, Pop2=Pop1, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
   qp.df.all <- qp.df.all %>%
     bind_rows(qp.df.all %>%
-                transform(Z=A, A=Z, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
+                transform(Pop3=Pop4, Pop4=Pop3, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
   qp.df.all <- qp.df.all %>%
     bind_rows(qp.df.all %>%
-                transform(X=Z, Z=X, Y=A, A=Y))
+                transform(Pop1=Pop3, Pop3=Pop1, Pop2=Pop4, Pop4=Pop2))
 
   ## add BBAA column and return
   qp.df.all %>%
-    select(X, Y, Z, A, BABA) %>%
-    transform(Y=Z, Z=Y, BBAA=BABA) %>%
+    select(Pop1, Pop2, Pop3, Pop4, BABA) %>%
+    transform(Pop2=Pop3, Pop3=Pop2, BBAA=BABA) %>%
     select(-BABA) %>%
-    group_by(X,Y,Z,A) %>% summarize(BBAA=unique(BBAA)) %>%
+    group_by(Pop1,Pop2,Pop3,Pop4) %>% summarize(BBAA=unique(BBAA)) %>%
     inner_join(x=qp.df.all) %>%
     write.table(quartets_df_filename, row.names=F, quote=F)
 }

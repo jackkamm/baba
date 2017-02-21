@@ -1,11 +1,9 @@
 import autograd.numpy as np
-import pandas as pd
 import scipy
-import itertools as it
 from cached_property import cached_property
-import autograd
 
-class baba_decomposition(object):
+
+class quartet_decomposition(object):
     def __init__(self, populations, components,
                  weights=None):
         """
@@ -52,7 +50,7 @@ class baba_decomposition(object):
         and then sorts by the component weights
         """
         norms = np.linalg.norm(self.components,
-                               ord = norm_order, axis = 2)
+                               ord=norm_order, axis=2)
         all0 = norms == 0
         assert np.all(np.max(np.abs(self.components),
                              axis=2)[all0] == 0)
@@ -67,19 +65,20 @@ class baba_decomposition(object):
         sort_components = np.argsort(weights)[::-1]
         weights = weights[sort_components]
         components = components[:, sort_components, :]
-        return baba_decomposition(self.populations,
-                                  components,
-                                  weights = weights)
+        return quartet_decomposition(self.populations,
+                                     components,
+                                     weights=weights)
 
     def optimize(self, objective,
-                 jac_maker = None,
-                 hess_maker = None,
-                 hessp_maker = None,
-                 bounds = None, **kwargs):
+                 jac_maker=None,
+                 hess_maker=None,
+                 hessp_maker=None,
+                 bounds=None, **kwargs):
         kwargs = dict(kwargs)
+
         def fun(flattened_components):
             return objective(
-                baba_decomposition(
+                quartet_decomposition(
                     self.populations,
                     np.reshape(flattened_components,
                                self.components.shape),
@@ -101,8 +100,86 @@ class baba_decomposition(object):
         res = scipy.optimize.minimize(
             fun, self.flattened_components, **kwargs)
 
-        res.baba_decomposition = baba_decomposition(
+        res.quartet_decomposition = quartet_decomposition(
             self.populations,
             np.reshape(res.x, self.components.shape))
 
         return res
+
+
+def build_tensor(shape, idxs, vals):
+    ret = np.zeros(shape)
+    ret[idxs[:, 0], idxs[:, 1], idxs[:, 2], idxs[:, 3]] = vals
+    return ret
+
+
+class abba_baba(object):
+    @classmethod
+    def from_dataframe(cls, df):
+        pops = set(df["Pop1"])
+        assert all(set(df["Pop2"]) == pops for k in "Pop2 Pop3 Pop4".split())
+        assert df.shape[0] == np.prod(len(pops) - np.arange(4))
+        pops = sorted(pops)
+        pop2idx = {k: v for v, k in enumerate(pops)}
+        idxs = np.array([[pop2idx[pop] for pop in df[k]]
+                         for k in "Pop1 Pop2 Pop3 Pop4".split()]).T
+        assert np.all(idxs.shape == np.array([np.prod(
+            len(pops) - np.arange(4)), 4]))
+        shape = [len(pops)] * 4
+        return cls(pops, *[build_tensor(shape, idxs, df[k])
+                           for k in "ABBA BABA BBAA Z.score n.snps".split()])
+
+    def __init__(self, populations, abba, baba, bbaa, z_score, n_snps):
+        if np.any((z_score < 0) & (baba > abba)) or np.any(
+                (z_score > 0) & (baba < abba)):
+            raise ValueError("z_score should have same sign as baba-abba")
+        for arr in (abba, baba, bbaa, z_score, n_snps):
+            if np.any(arr.shape != np.array([len(populations)] * 4)):
+                raise ValueError("array has wrong dimension")
+        self.populations = populations
+        self.abba = abba
+        self.baba = baba
+        self.bbaa = bbaa
+        self.n_snps = n_snps
+        self.z_score = z_score
+
+    @cached_property
+    def abba(self):
+        return np.transpose(self.baba, [1, 0, 2, 3])
+
+    @cached_property
+    def bbaa(self):
+        return np.transpose(self.baba, [0, 2, 1, 3])
+
+    def make_baba_abba_objective(self, l1_penalty):
+        z_scores = np.array(self.z_score)
+        # TODO: only keep bbaa > baba > abba
+        z_scores[(self.bbaa < self.abba) | (self.bbaa < self.baba)] = 0
+
+        symmetries = [[0, 1, 2, 3]]
+        symmetries += [[y, z, w, x] for w, x, y, z in symmetries]
+        symmetries += [[x, w, z, y] for w, x, y, z in symmetries]
+        assert all(np.all(z_scores == np.transpose(z_scores, s))
+                   for s in symmetries)
+
+        antisymmetries = [[x, w, y, z] for w, x, y, z in symmetries]
+        assert all(np.all(z_scores == -np.transpose(z_scores, s))
+                   for s in antisymmetries)
+
+        def objective(baba_decomp):
+            arr = baba_decomp.array
+            components = baba_decomp.components
+            symmetrized_arr = 0
+            for s in symmetries:
+                symmetrized_arr = symmetrized_arr + np.transpose(arr, s)
+            ## TODO: zero out antisymmetries!
+            ## so their error on diagonal isn't zerod out
+            for s in antisymmetries:
+                symmetrized_arr = symmetrized_arr - np.transpose(arr, s)
+            return (np.sum((symmetrized_arr - z_scores)**2)
+                    + np.sum(l1_penalty * components *
+                            (1 +
+                             l1_penalty * (components[[1, 0, 3, 2], :, :] +
+                                           components[[2, 3, 0, 1], :, :] +
+                                           components[[3, 2, 3, 0], :, :]))))
+        return objective

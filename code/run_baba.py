@@ -1,7 +1,7 @@
 import sys
+import subprocess
 import pandas as pd
 import autograd
-import autograd.numpy as np
 import scipy
 import scipy.stats
 import json
@@ -17,9 +17,11 @@ from baba import quartet_decomposition, baba
 # outdir = "../data/scratch/newhumori_18pops/decomposition_5_100"
 # optimization_result_file = os.path.join(outdir, "optimization_result.json")
 # inferred_components_file = os.path.join(outdir, "inferred_components.txt")
-def decompose_qpdstats(in_file, n_components, l1_penalty,
+def decompose_qpdstats(in_file, pop_order_file,
+                       n_components, l1_penalty,
                        optimization_result_file,
-                       inferred_components_file):
+                       inferred_components_file,
+                       plot_file):
     n_components = int(n_components)
     l1_penalty = float(l1_penalty)
 
@@ -46,6 +48,10 @@ def decompose_qpdstats(in_file, n_components, l1_penalty,
 
     with open(inferred_components_file, "w") as f:
         inferred.dump(f)
+
+    subprocess.check_call(["Rscript", "code/run_baba.R", "plot.baba",
+                           inferred_components_file, pop_order_file,
+                           plot_file])
 
 
 def clean_qpDstats_output():

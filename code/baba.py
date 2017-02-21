@@ -1,3 +1,5 @@
+
+import itertools as it
 import autograd.numpy as np
 import scipy
 from cached_property import cached_property
@@ -113,7 +115,7 @@ def build_tensor(shape, idxs, vals):
     return ret
 
 
-class abba_baba(object):
+class baba(object):
     @classmethod
     def from_dataframe(cls, df):
         pops = set(df["Pop1"])
@@ -126,22 +128,43 @@ class abba_baba(object):
         assert np.all(idxs.shape == np.array([np.prod(
             len(pops) - np.arange(4)), 4]))
         shape = [len(pops)] * 4
-        return cls(pops, *[build_tensor(shape, idxs, df[k])
-                           for k in "ABBA BABA BBAA Z.score n.snps".split()])
+        ret = cls(pops, *[build_tensor(shape, idxs, df[k])
+                          for k in "BABA Z.score n.snps".split()])
 
-    def __init__(self, populations, abba, baba, bbaa, z_score, n_snps):
-        if np.any((z_score < 0) & (baba > abba)) or np.any(
-                (z_score > 0) & (baba < abba)):
-            raise ValueError("z_score should have same sign as baba-abba")
-        for arr in (abba, baba, bbaa, z_score, n_snps):
+        assert np.all(build_tensor(shape, idxs, df["ABBA"]) == ret.abba)
+        assert np.all(build_tensor(shape, idxs, df["BBAA"]) == ret.bbaa)
+        return ret
+
+    def __init__(self, populations, baba, z_score, n_snps):
+        for arr in (baba, z_score, n_snps):
             if np.any(arr.shape != np.array([len(populations)] * 4)):
                 raise ValueError("array has wrong dimension")
+
+        symmetries = [[0, 1, 2, 3]]
+        symmetries += [[x, w, z, y] for w, x, y, z in symmetries]
+        if any(np.any(z_score != np.transpose(z_score, s))
+               for s in symmetries):
+            raise ValueError("Z-scores not symmetric")
+
+        symmetries += [[y, x, w, z] for w, x, y, z in symmetries]
+        symmetries += [[w, z, y, x] for w, x, y, z in symmetries]
+        assert len(symmetries) == 8
+        if any(np.any(baba != np.transpose(baba, s))
+               for s in symmetries):
+            raise ValueError("BABA not symmetric")
+
+        if any(np.any(n_snps != np.transpose(n_snps, s))
+               for s in it.permutations(range(4))):
+            raise ValueError("n_snps not symmetric")
+
         self.populations = populations
-        self.abba = abba
         self.baba = baba
-        self.bbaa = bbaa
         self.n_snps = n_snps
         self.z_score = z_score
+
+        if np.any((self.z_score < 0) & (self.baba > self.abba)) or np.any(
+                (self.z_score > 0) & (self.baba < self.abba)):
+            raise ValueError("z_score should have same sign as baba-abba")
 
     @cached_property
     def abba(self):

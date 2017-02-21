@@ -6,7 +6,7 @@ import scipy
 import scipy.stats
 import json
 from collections import OrderedDict
-from baba import quartet_decomposition, abba_baba
+from baba import quartet_decomposition, baba
 
 
 # in_file = "../data/scratch/newhumori_18pops/all_quartets_df.txt"
@@ -24,7 +24,7 @@ def decompose_qpdstats(in_file, n_components, l1_penalty,
     l1_penalty = float(l1_penalty)
 
     df = pd.read_table(in_file, sep=None)
-    ab = abba_baba.from_dataframe(df)
+    ab = baba.from_dataframe(df)
 
     components_size = (4, n_components, len(ab.populations))
     random_baba = quartet_decomposition(

@@ -11,13 +11,48 @@ plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
     baba.df
 
   baba.df %>%
-    ggplot(aes(y=Population, x=Component, fill=Value)) +
-    geom_tile() +
-    scale_fill_gradient(low="gray", high="red") +
-    facet_grid(Mode ~ .) ->
-    p
+    select(Component, Mode, Population, Value) %>%
+    spread(Mode, Value) %>%
+    filter(Component == 1) ->
+    foo
 
-  ggsave(plot.fname, p, width=7, height=10)
+  get.outer.df.helper <- function(df, X.mode, Y.mode){
+    ret <- df[[X.mode]] %o% df[[Y.mode]]
+    colnames(ret) <- df$Population
+    ret %>%
+      as.data.frame() %>%
+      mutate(Y.pop = df$Population, Weight = df$Weight) %>%
+      gather(X.pop, Value, -Y.pop, -Weight) %>%
+      mutate(X.pop = factor(X.pop, levels=sorted.pops)) %>%
+      mutate(X.mode = X.mode, Y.mode = Y.mode)
+  }
+  get.outer.df <- function(df){
+    rbind(
+      df %>% get.outer.df.helper("Pop1", "Pop3"),
+      df %>% get.outer.df.helper("Pop2", "Pop4")
+    )
+  }
+  n.components <- length(levels(factor(baba.df$Component)))
+  for (i in seq(1, n.components, by=4)){
+    baba.df %>%
+      filter(Component %in% i:(i+3)) %>%
+      select(Component, Weight, Mode, Population, Value) %>%
+      spread(Mode, Value) %>%
+      group_by(Component) %>%
+      do(get.outer.df(.)) %>%
+      ungroup() %>%
+      mutate(Facet = paste("X =", X.mode, ", Y =", Y.mode)) %>%
+      ggplot(aes(x=X.pop, y=Y.pop, fill=Value, alpha=Weight)) +
+      geom_tile() +
+      scale_alpha_continuous(breaks=(0:5)/5*max(baba.df$Weight), limits=c(0, max(baba.df$Weight))) +
+      scale_fill_gradient(low="gray", high="red") +
+      facet_wrap(~ Component + Facet, ncol=4) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) ->
+      p
+
+    ggsave(paste(plot.fname, i, "-", i+3, ".pdf", sep=""),
+           p, width=14, height=7)
+  }
 }
 
 ## df.filename <- "data/scratch/newhumori_18pops/all_quartets_df.txt"

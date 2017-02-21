@@ -42,9 +42,9 @@ class quartet_decomposition(object):
               "Value", sep="\t", file=f)
         for index, value in np.ndenumerate(self.components):
             mode, component, population = index
-            print(component, self.weights[component],
-                  mode, self.populations[population], value,
-                  sep="\t", file=f)
+            print(component + 1, self.weights[component],
+                  "Pop{}".format(mode + 1), self.populations[population],
+                  value, sep="\t", file=f)
 
     def reweight(self, norm_order):
         """

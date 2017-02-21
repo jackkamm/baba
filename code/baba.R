@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 
 sort.pops.bbaa <- function(quartets.df, pop1, pop2, pop4){

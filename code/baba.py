@@ -176,8 +176,8 @@ class baba(object):
 
     def make_baba_abba_objective(self, l1_penalty):
         z_scores = np.array(self.z_score)
-        # TODO: only keep bbaa > baba > abba
-        z_scores[(self.bbaa < self.abba) | (self.bbaa < self.baba)] = 0
+        # only keep bbaa > baba > abba
+        z_scores[(self.bbaa < self.baba) | (self.baba < self.abba)] = 0
 
         symmetries = [[0, 1, 2, 3]]
         symmetries += [[y, z, w, x] for w, x, y, z in symmetries]
@@ -185,24 +185,12 @@ class baba(object):
         assert all(np.all(z_scores == np.transpose(z_scores, s))
                    for s in symmetries)
 
-        antisymmetries = [[x, w, y, z] for w, x, y, z in symmetries]
-        assert all(np.all(z_scores == -np.transpose(z_scores, s))
-                   for s in antisymmetries)
-
         def objective(baba_decomp):
             arr = baba_decomp.array
             components = baba_decomp.components
             symmetrized_arr = 0
             for s in symmetries:
                 symmetrized_arr = symmetrized_arr + np.transpose(arr, s)
-            ## TODO: zero out antisymmetries!
-            ## so their error on diagonal isn't zerod out
-            for s in antisymmetries:
-                symmetrized_arr = symmetrized_arr - np.transpose(arr, s)
             return (np.sum((symmetrized_arr - z_scores)**2)
-                    + np.sum(l1_penalty * components *
-                            (1 +
-                             l1_penalty * (components[[1, 0, 3, 2], :, :] +
-                                           components[[2, 3, 0, 1], :, :] +
-                                           components[[3, 2, 3, 0], :, :]))))
+                    + np.sum(l1_penalty * components))
         return objective

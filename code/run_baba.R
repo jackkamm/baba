@@ -1,8 +1,9 @@
 source("code/baba.R")
 
-## baba.output <- "data/scratch/newhumori_18pops/decomposition_5_100/inferred_components.txt"
+## baba.output <- "data/scratch/newhumori_18pops/decomposition/inferred_components.txt"
 ## sorted.pops.fname <- "data/scratch/newhumori_18pops/sorted_pops.French.Europe_LNBA.Chimp.txt"
-plot.baba <- function(){
+## plot.fname <- "data/scratch/newhumori_18pops/decomposition/plot_baba.pdf"
+plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
   sorted.pops <- scan(sorted.pops.fname, what = character())
 
   read.table(baba.output, head=T, stringsAsFactors=F) %>%
@@ -13,7 +14,10 @@ plot.baba <- function(){
     ggplot(aes(y=Population, x=Component, fill=Value)) +
     geom_tile() +
     scale_fill_gradient(low="gray", high="red") +
-    facet_grid(Mode ~ .)
+    facet_grid(Mode ~ .) ->
+    p
+
+  ggsave(plot.fname, p, width=7, height=10)
 }
 
 ## df.filename <- "data/scratch/newhumori_18pops/all_quartets_df.txt"

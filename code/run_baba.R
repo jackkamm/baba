@@ -1,0 +1,58 @@
+source("code/baba.R")
+
+## baba.output <- "data/scratch/newhumori_18pops/decomposition_5_100/inferred_components.txt"
+## sorted.pops.fname <- "data/scratch/newhumori_18pops/sorted_pops.French.Europe_LNBA.Chimp.txt"
+plot.baba <- function(){
+  sorted.pops <- scan(sorted.pops.fname, what = character())
+
+  read.table(baba.output, head=T, stringsAsFactors=F) %>%
+    mutate(Population = factor(Population, levels=sorted.pops)) ->
+    baba.df
+
+  baba.df %>%
+    ggplot(aes(y=Population, x=Component, fill=Value)) +
+    geom_tile() +
+    scale_fill_gradient(low="gray", high="red") +
+    facet_grid(Mode ~ .)
+}
+
+## df.filename <- "data/scratch/newhumori_18pops/all_quartets_df.txt"
+## x <- "French"
+## y <- "Europe_LNBA"
+## a <- "Chimp"
+run.sort.pops.bbaa <- function(df.filename, x, y, a){
+  read.table(df.filename, head=T, stringsAsFactors = F) %>%
+    sort.pops.bbaa(x, y, a) %>%
+    write("")
+}
+
+extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename){
+  qp.df.all <- read.table(qpDstats_cleaned_output,
+                      col.names = c("X","Y","Z","A", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
+                      stringsAsFactors = F) %>%
+    ## drop is_best parameter, it is not a good indication of topology (allows "topologies" BBAA < ABBA,BABA)
+    select(X, Y, Z, A, Z.score, BABA, ABBA, n.snps)
+
+  ## duplicate rows for all permutations
+  qp.df.all <- qp.df.all %>%
+    bind_rows(qp.df.all %>%
+                transform(X=Y, Y=X, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
+  qp.df.all <- qp.df.all %>%
+    bind_rows(qp.df.all %>%
+                transform(Z=A, A=Z, Z.score=-Z.score, BABA=ABBA, ABBA=BABA))
+  qp.df.all <- qp.df.all %>%
+    bind_rows(qp.df.all %>%
+                transform(X=Z, Z=X, Y=A, A=Y))
+
+  ## add BBAA column and return
+  qp.df.all %>%
+    select(X, Y, Z, A, BABA) %>%
+    transform(Y=Z, Z=Y, BBAA=BABA) %>%
+    select(-BABA) %>%
+    group_by(X,Y,Z,A) %>% summarize(BBAA=unique(BBAA)) %>%
+    inner_join(x=qp.df.all) %>%
+    write.table(quartets_df_filename, row.names=F, quote=F)
+}
+
+args <- commandArgs(trailingOnly=TRUE)
+do.call(args[1], as.list(args[-1]))

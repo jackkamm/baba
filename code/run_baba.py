@@ -1,4 +1,5 @@
 import sys
+import os
 import pandas as pd
 import autograd
 import autograd.numpy as np
@@ -6,8 +7,16 @@ import scipy
 import scipy.stats
 import json
 from collections import OrderedDict
+from baba import baba_decomposition
 
-
+# in_file = "../data/scratch/newhumori_18pops/all_quartets_df.txt"
+# n_components = 5
+# n_components = 10
+# l1_penalty = 100
+# l1_penalty = 10
+# outdir = "../data/scratch/newhumori_18pops/decomposition_5_100"
+# optimization_result_file = os.path.join(outdir, "optimization_result.json")
+# inferred_components_file = os.path.join(outdir, "inferred_components.txt")
 def decompose_qpdstats(in_file, n_components, l1_penalty,
                        optimization_result_file,
                        inferred_components_file):
@@ -31,11 +40,6 @@ def decompose_qpdstats(in_file, n_components, l1_penalty,
     z_score_arr = np.zeros([len(pops)]*4)
     z_score_arr[x, y, z, a] = z_score
 
-    components_size = (4, n_components, len(pops))
-    init_components = scipy.stats.uniform.rvs(size=components_size)
-    init_x = np.reshape(init_components, -1)
-    assert np.all(np.reshape(init_x, components_size) == init_components)
-
     symmetries = [[0, 1, 2, 3]]
     symmetries += [[z, a, x, y] for x, y, z, a in symmetries]
     symmetries += [[y, x, a, z] for x, y, z, a in symmetries]
@@ -46,21 +50,32 @@ def decompose_qpdstats(in_file, n_components, l1_penalty,
     assert all(np.all(z_score_arr == -np.transpose(z_score_arr, s))
                for s in antisymmetries)
 
-    def objective(x):
-        components = np.reshape(x, components_size)
-        arr = np.einsum("ia,ib,ic,id->abcd",
-                        *(components[i, :, :] for i in range(4)))
+    def objective(baba_decomp):
+        arr = baba_decomp.array
+        components = baba_decomp.components
         symmetrized_arr = 0
         for s in symmetries:
             symmetrized_arr = symmetrized_arr + np.transpose(arr, s)
+        ## TODO: zero out antisymmetries!
+        ## so their error on diagonal isn't zerod out
         for s in antisymmetries:
             symmetrized_arr = symmetrized_arr - np.transpose(arr, s)
         return (np.sum((symmetrized_arr - z_score_arr)**2)
-                + np.sum(l1_penalty * x))
+                + np.sum(l1_penalty * components *
+                         (1 +
+                          l1_penalty * (components[[1, 0, 3, 2], :, :] +
+                                        components[[2, 3, 0, 1], :, :] +
+                                        components[[3, 2, 3, 0], :, :]))))
 
-    res = scipy.optimize.minimize(
-        objective, init_x, jac=autograd.grad(objective),
-        bounds=[(0, None)] * len(init_x))
+    components_size = (4, n_components, len(pops))
+    random_baba = baba_decomposition(pops,
+        scipy.stats.uniform.rvs(size=components_size))
+    res = random_baba.optimize(objective,
+                               jac_maker = autograd.grad,
+                               bounds = [0, None])
+
+    inferred = res.baba_decomposition
+    inferred = inferred.reweight(norm_order=float('inf'))
 
     with open(optimization_result_file, "w") as f:
         json.dump(OrderedDict(
@@ -70,15 +85,8 @@ def decompose_qpdstats(in_file, n_components, l1_penalty,
             [(k, list(res[k])) for k in ["x", "jac"]]
         ), f, indent=True)
 
-    inferred_components = np.reshape(res.x, components_size)
     with open(inferred_components_file, "w") as f:
-        print("Component", "Subcomponent", "Population", "Value",
-              sep="\t", file=f)
-        for i, subcomponent in enumerate(inferred_components):
-            for j, row in enumerate(subcomponent):
-                for k, value in enumerate(row):
-                    print(j+1, "XYZA"[i], pops[k], value, sep="\t", file=f)
-
+        inferred.dump(f)
 
 def clean_qpDstats_output():
     for line in sys.stdin:

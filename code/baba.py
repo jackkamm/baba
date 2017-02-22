@@ -194,3 +194,13 @@ class baba(object):
             return (np.sum((symmetrized_arr - z_scores)**2)
                     + np.sum(l1_penalty * components))
         return objective
+
+def get_permutations(from_ABs, to_ABs):
+    def recode(ABs):
+        return np.array([{"A": -1, "B": 1}[c] for c in ABs.upper()], dtype=int)
+    from_ABs = recode(from_ABs)
+    to_ABs = recode(to_ABs)
+    for permutation in it.permutations(range(len(from_ABs))):
+        curr = from_ABs[np.array(permutation)]
+        if np.all(curr == to_ABs) or np.all(curr == -1 * to_ABs):
+            yield permutation

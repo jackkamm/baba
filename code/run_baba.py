@@ -3,6 +3,7 @@ import subprocess
 import pandas as pd
 import autograd
 import scipy
+import autograd.numpy as np
 import scipy.stats
 import json
 from collections import OrderedDict
@@ -17,11 +18,11 @@ from baba import quartet_decomposition, baba
 # outdir = "../data/scratch/newhumori_18pops/decomposition_5_100"
 # optimization_result_file = os.path.join(outdir, "optimization_result.json")
 # inferred_components_file = os.path.join(outdir, "inferred_components.txt")
-def decompose_qpdstats(in_file, pop_order_file,
-                       n_components, l1_penalty,
-                       optimization_result_file,
-                       inferred_components_file,
-                       plot_file):
+def decompose_z_baba_abba(in_file, n_components, l1_penalty,
+                          optimization_result_file,
+                          inferred_components_file, seed=None):
+    if seed:
+        np.random.seed(int(seed))
     n_components = int(n_components)
     l1_penalty = float(l1_penalty)
 
@@ -31,7 +32,7 @@ def decompose_qpdstats(in_file, pop_order_file,
     components_size = (4, n_components, len(ab.populations))
     random_baba = quartet_decomposition(
         ab.populations, scipy.stats.uniform.rvs(size=components_size))
-    res = random_baba.optimize(ab.make_baba_abba_objective(l1_penalty),
+    res = random_baba.optimize(ab.make_z_baba_abba_objective(l1_penalty),
                                jac_maker=autograd.grad,
                                bounds=[0, None])
 
@@ -48,10 +49,6 @@ def decompose_qpdstats(in_file, pop_order_file,
 
     with open(inferred_components_file, "w") as f:
         inferred.dump(f)
-
-    subprocess.check_call(["Rscript", "code/run_baba.R", "plot.baba",
-                           inferred_components_file, pop_order_file,
-                           plot_file])
 
 
 def clean_qpDstats_output():

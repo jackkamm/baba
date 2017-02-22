@@ -1,9 +1,6 @@
 source("code/baba.R")
 
-## baba.output <- "data/scratch/newhumori_18pops/decomposition/inferred_components.txt"
-## sorted.pops.fname <- "data/scratch/newhumori_18pops/sorted_pops.French.Europe_LNBA.Chimp.txt"
-## plot.fname <- "data/scratch/newhumori_18pops/decomposition/plot_baba.pdf"
-plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
+plot.baba.vectors <- function(baba.output, sorted.pops.fname, plot.fname){
   sorted.pops <- scan(sorted.pops.fname, what = character())
 
   read.table(baba.output, head=T, stringsAsFactors=F) %>%
@@ -11,10 +8,24 @@ plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
     baba.df
 
   baba.df %>%
-    select(Component, Mode, Population, Value) %>%
-    spread(Mode, Value) %>%
-    filter(Component == 1) ->
-    foo
+    select(Component, Weight, Mode, Population, Value) %>%
+    ggplot(aes(x=Component, y=Population, fill=Value, alpha=Weight)) +
+    geom_tile() +
+    scale_alpha_continuous(range=c(.65,1)) +
+    facet_grid(Mode ~ .) -> p
+
+  ggsave(plot.fname, p)
+}
+
+## baba.output <- "data/scratch/newhumori_18pops/decomposition/inferred_components.txt"
+## sorted.pops.fname <- "data/scratch/newhumori_18pops/sorted_pops.French.Europe_LNBA.Chimp.txt"
+## plot.fname <- "data/scratch/newhumori_18pops/decomposition/plot_baba.pdf"
+plot.baba.matrices <- function(baba.output, sorted.pops.fname, plot.fname, X.1, Y.1, X.2, Y.2){
+  sorted.pops <- scan(sorted.pops.fname, what = character())
+
+  read.table(baba.output, head=T, stringsAsFactors=F) %>%
+    mutate(Population = factor(Population, levels=sorted.pops)) ->
+    baba.df
 
   get.outer.df.helper <- function(df, X.mode, Y.mode){
     ret <- df[[X.mode]] %o% df[[Y.mode]]
@@ -28,8 +39,8 @@ plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
   }
   get.outer.df <- function(df){
     rbind(
-      df %>% get.outer.df.helper("Pop1", "Pop3"),
-      df %>% get.outer.df.helper("Pop2", "Pop4")
+      df %>% get.outer.df.helper(X.1, Y.1),
+      df %>% get.outer.df.helper(X.2, Y.2)
     )
   }
   n.components <- length(levels(factor(baba.df$Component)))
@@ -44,7 +55,10 @@ plot.baba <- function(baba.output, sorted.pops.fname, plot.fname){
       mutate(Facet = paste("X =", X.mode, ", Y =", Y.mode)) %>%
       ggplot(aes(x=X.pop, y=Y.pop, fill=Value, alpha=Weight)) +
       geom_tile() +
-      scale_alpha_continuous(breaks=(0:5)/5*max(baba.df$Weight), limits=c(0, max(baba.df$Weight))) +
+      #scale_alpha_continuous(breaks=(0:5)/5*max(baba.df$Weight), limits=c(0, max(baba.df$Weight))) +
+      #scale_alpha_continuous(trans="log", limits=c(min(baba.df$Weight), max(baba.df$Weight))) +
+      scale_alpha_continuous(range=c(.65,1), limits=c(baba.df %>% filter(Weight > 0) %>% with(min(Weight)),
+                                                      max(baba.df$Weight))) +
       scale_fill_gradient(low="gray", high="red") +
       facet_wrap(~ Component + Facet, ncol=4) +
       theme(axis.text.x = element_text(angle = 90, hjust = 1)) ->

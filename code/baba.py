@@ -1,4 +1,3 @@
-
 import itertools as it
 import autograd.numpy as np
 import scipy
@@ -174,16 +173,14 @@ class baba(object):
     def bbaa(self):
         return np.transpose(self.baba, [0, 2, 1, 3])
 
-    def make_baba_abba_objective(self, l1_penalty):
+    def make_z_baba_abba_objective(self, l1_penalty):
         z_scores = np.array(self.z_score)
         # only keep bbaa > baba > abba
         z_scores[(self.bbaa < self.baba) | (self.baba < self.abba)] = 0
 
-        symmetries = [[0, 1, 2, 3]]
-        symmetries += [[y, z, w, x] for w, x, y, z in symmetries]
-        symmetries += [[x, w, z, y] for w, x, y, z in symmetries]
-        assert all(np.all(z_scores == np.transpose(z_scores, s))
-                   for s in symmetries)
+        symmetries = set(get_permutations("BABA", "BABA")) & set(
+            get_permutations("ABBA", "ABBA"))
+        assert len(symmetries) == 4
 
         def objective(baba_decomp):
             arr = baba_decomp.array
@@ -193,6 +190,7 @@ class baba(object):
                 symmetrized_arr = symmetrized_arr + np.transpose(arr, s)
             return (np.sum((symmetrized_arr - z_scores)**2)
                     + np.sum(l1_penalty * components))
+
         return objective
 
 def get_permutations(from_ABs, to_ABs):

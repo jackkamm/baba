@@ -1,6 +1,23 @@
-source("code/baba.R")
+#library(dplyr)
+#library(tidyr)
+#library(ggplot2)
 
-remove.quartet.pops <- function(input.quartets.file, output.quartets.file, ...){
+#' Sort pop3 by BBAA(pop1, pop2, pop3, pop4)
+#' @import dplyr tidyr
+#' @export
+sort_pops_bbaa <-
+  function(quartets.df, pop1, pop2, pop4){
+  c(pop1, pop2,
+    quartets.df %>%
+      filter(BBAA > BABA, BBAA > ABBA, Pop1 == pop1, Pop2 == pop2, Pop4 == pop4) %>%
+      with(structure(BBAA, names=Pop3)) %>%
+      sort() %>% names(),
+    pop4)
+}
+
+#' @import dplyr tidyr
+#' @export
+remove_quartet_pops <- function(input.quartets.file, output.quartets.file, ...){
   to.remove <- c(...)
   read.table(input.quartets.file, head=T) %>%
     filter(!(Pop1 %in% to.remove)) %>%
@@ -10,7 +27,9 @@ remove.quartet.pops <- function(input.quartets.file, output.quartets.file, ...){
     write.table(output.quartets.file, quote=F)
 }
 
-plot.baba.vectors <- function(baba.output, sorted.pops.fname, plot.fname){
+#' @import dplyr tidyr ggplot2
+#' @export
+plot_baba_vectors <- function(baba.output, sorted.pops.fname, plot.fname){
   sorted.pops <- scan(sorted.pops.fname, what = character())
 
   read.table(baba.output, head=T, stringsAsFactors=F) %>%
@@ -30,7 +49,10 @@ plot.baba.vectors <- function(baba.output, sorted.pops.fname, plot.fname){
 ## baba.output <- "data/scratch/newhumori_18pops/decomposition/inferred_components.txt"
 ## sorted.pops.fname <- "data/scratch/newhumori_18pops/sorted_pops.French.Europe_LNBA.Chimp.txt"
 ## plot.fname <- "data/scratch/newhumori_18pops/decomposition/plot_baba.pdf"
-plot.baba.matrices <- function(baba.output, sorted.pops.fname, plot.fname, X.1, Y.1, X.2, Y.2){
+
+#' @import dplyr tidyr ggplot2
+#' @export
+plot_baba_matrices <- function(baba.output, sorted.pops.fname, plot.fname, X.1, Y.1, X.2, Y.2){
   sorted.pops <- scan(sorted.pops.fname, what = character())
 
   read.table(baba.output, head=T, stringsAsFactors=F) %>%
@@ -83,12 +105,17 @@ plot.baba.matrices <- function(baba.output, sorted.pops.fname, plot.fname, X.1, 
 ## x <- "French"
 ## y <- "Europe_LNBA"
 ## a <- "Chimp"
-run.sort.pops.bbaa <- function(df.filename, x, y, a){
+
+#' @import dplyr tidyr
+#' @export
+run_sort_pops_bbaa <- function(df.filename, x, y, a){
   read.table(df.filename, head=T, stringsAsFactors = F) %>%
     sort.pops.bbaa(x, y, a) %>%
     write("")
 }
 
+#' @import dplyr tidyr
+#' @export
 extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename){
   qp.df.all <- read.table(qpDstats_cleaned_output,
                       col.names = c("Pop1","Pop2","Pop3","Pop4", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
@@ -116,6 +143,3 @@ extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_f
     inner_join(x=qp.df.all) %>%
     write.table(quartets_df_filename, row.names=F, quote=F)
 }
-
-args <- commandArgs(trailingOnly=TRUE)
-do.call(args[1], as.list(args[-1]))

@@ -1,5 +1,15 @@
 source("code/baba.R")
 
+remove.quartet.pops <- function(input.quartets.file, output.quartets.file, ...){
+  to.remove <- c(...)
+  read.table(input.quartets.file, head=T) %>%
+    filter(!(Pop1 %in% to.remove)) %>%
+    filter(!(Pop2 %in% to.remove)) %>%
+    filter(!(Pop3 %in% to.remove)) %>%
+    filter(!(Pop4 %in% to.remove)) %>%
+    write.table(output.quartets.file, quote=F)
+}
+
 plot.baba.vectors <- function(baba.output, sorted.pops.fname, plot.fname){
   sorted.pops <- scan(sorted.pops.fname, what = character())
 

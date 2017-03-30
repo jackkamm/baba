@@ -193,6 +193,41 @@ class baba(object):
 
         return objective
 
+    # def make_baba_abba_objective(self, l1_penalty):
+    #     symmetries = set(get_permutations("BBAA", "BBAA")) & set(
+    #         get_permutations("ABBA", "BABA"))
+    #     assert len(symmetries) == 4
+
+    #     antisymmetries = set([])
+    #     for non_bbaa in ("ABBA", "BABA"):
+    #         antisymmetries |= (set(get_permutations("BBAA", non_bbaa)) & set(
+    #             get_permutations(non_bbaa, "BBAA")))
+
+    #     # convert z_score from BABA-ABBA to BBAA-ABBA
+    #     z_score = np.transpose(self.z_score, [0, 2, 1, 3])
+
+    #     repeated_idx = np.zeros(self.z_score.shape)
+    #     for i, j, k, l in it.product(*[range(n) for n in repeated_idx.shape]):
+    #         if len(set([i, j, k, l])) != 4:
+    #             repeated_idx[i, j, k, l] = 1
+    #     assert np.all(repeated_idx * z_score == 0)
+
+    #     def objective(decomp):
+    #         bbaa_abba = decomp.array
+    #         arr = bbaa_abba
+    #         for s in symmetries:
+    #             arr = arr + np.transpose(arr, s)
+    #         for s in antisymmetries:
+    #             arr = arr - np.transpose(arr, s)
+
+    #         return (np.sum((arr - z_score)**2)
+    #                 # add penalty for repeated populations
+    #                 + np.sum(repeated_idx * decomp.array**2)
+    #                 + np.sum(l1_penalty * decomp.components))
+
+    #     return objective
+
+
 def get_permutations(from_ABs, to_ABs):
     def recode(ABs):
         return np.array([{"A": -1, "B": 1}[c] for c in ABs.upper()], dtype=int)

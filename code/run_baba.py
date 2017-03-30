@@ -4,10 +4,27 @@ import pandas as pd
 import autograd
 import scipy
 import autograd.numpy as np
+import os
 import scipy.stats
 import json
 from collections import OrderedDict
 from baba import quartet_decomposition, baba
+import subprocess
+
+
+def make_z_baba_abba(in_file, sorted_pops_file, n_components, l1_penalty,
+                     outdir, seed=None):
+    inferred_components_file = os.path.join(outdir, "inferred_components.txt")
+    decompose_z_baba_abba(in_file, n_components, l1_penalty,
+                          os.path.join(outdir, "optimization_result.json"),
+                          inferred_components_file)
+    subprocess.check_call(["Rscript", "code/run_baba.R", "plot.baba.matrices",
+                           inferred_components_file, sorted_pops_file,
+                           os.path.join(outdir, "z_baba_abba_squares."),
+                           "Pop1", "Pop3", "Pop2", "Pop4"])
+    subprocess.check_call(["Rscript", "code/run_baba.R", "plot.baba.vectors",
+                           inferred_components_file, sorted_pops_file,
+                           os.path.join(outdir, "z_baba_abba_vectors.pdf")])
 
 
 # in_file = "../data/scratch/newhumori_18pops/all_quartets_df.txt"

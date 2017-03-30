@@ -117,11 +117,18 @@ run_sort_pops_bbaa <- function(df.filename, x, y, a){
 #' @import dplyr tidyr
 #' @export
 extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename){
-  qp.df.all <- read.table(qpDstats_cleaned_output,
-                      col.names = c("Pop1","Pop2","Pop3","Pop4", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps"),
-                      stringsAsFactors = F) %>%
-    ## drop is_best parameter, it is not a good indication of topology (allows "topologies" BBAA < ABBA,BABA)
-    select(Pop1, Pop2, Pop3, Pop4, Z.score, BABA, ABBA, n.snps)
+  qp.df.all <- read.table(qpDstats_cleaned_output)
+
+  if (ncol(qp.df.all) == 10) {
+    colnames(qp.df.all) <- c("Pop1","Pop2","Pop3","Pop4", "ABBA_BABA", "Z.score", "is_best", "BABA", "ABBA", "n.snps")
+  } else {
+    stopifnot(ncol(qp.df.all) == 9)
+    colnames(qp.df.all) <- c("Pop1","Pop2","Pop3","Pop4", "ABBA_BABA", "Z.score", "BABA", "ABBA", "n.snps")
+  }
+
+  qp.df.all %>%
+    select(Pop1, Pop2, Pop3, Pop4, Z.score, BABA, ABBA, n.snps) ->
+    qp.df.all
 
   ## duplicate rows for all permutations
   qp.df.all <- qp.df.all %>%

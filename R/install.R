@@ -1,6 +1,8 @@
 # meant to be run from file directory
-# if hanging, try uninstalling with remove.packages("baba") first
 library(devtools)
+if (!require("baba")){
+	remove.packages("baba")
+}
 setwd("baba")
 build()
 document()

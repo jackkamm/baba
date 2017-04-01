@@ -12,6 +12,33 @@ from collections import OrderedDict
 
 
 class quartet_decomposition(object):
+    @classmethod
+    def from_dataframe(cls, df):
+        if isinstance(df, str):
+            df = pd.read_table(df)
+        populations = sorted(set(df["Population"]))
+
+        def get_idxs(column):
+            sorted_values = sorted(set(column))
+            idx_dict = {val: idx for idx, val in enumerate(
+                sorted_values)}
+            return np.array([
+                idx_dict[val] for val in column
+            ], dtype=int)
+
+        axes = ["Mode", "Component", "Population"]
+        size = [len(set(df[a])) for a in axes]
+        components = np.zeros(size)
+
+        for i, j, k, v in zip(*([get_idxs(df[col]) for col in axes] + [df["Value"]])):
+            components[i, j, k] = v
+
+        weights = [w for c, w in sorted(set(zip(df["Component"], df["Weight"])))]
+        return cls(populations, components, weights = weights)
+
+    def __eq__(self, other):
+        return self.populations == other.populations and np.all(self.components == other.components) and np.all(self.weights == other.weights)
+
     def __init__(self, populations, components,
                  weights=None):
         """
@@ -43,14 +70,21 @@ class quartet_decomposition(object):
     def flattened_components(self):
         return np.reshape(self.components, -1)
 
-    def dump(self, f):
-        print("Component", "Weight", "Mode", "Population",
-              "Value", sep="\t", file=f)
+    def data_frame(self):
+        df = []
         for index, value in np.ndenumerate(self.components):
             mode, component, population = index
-            print(component + 1, self.weights[component],
-                  "Pop{}".format(mode + 1), self.populations[population],
-                  value, sep="\t", file=f)
+            df.append((component + 1,
+                       self.weights[component],
+                       "Pop{}".format(mode + 1),
+                       self.populations[population],
+                       value))
+        return pd.DataFrame(df, columns = (
+            "Component", "Weight", "Mode",
+            "Population", "Value"))
+
+    def dump(self, f):
+        self.data_frame().to_csv(f, sep="\t", index=False)
 
     def reweight(self, norm_order):
         """
@@ -190,6 +224,7 @@ class baba(object):
         assert len(symmetries) == 4
 
         def objective(baba_decomp):
+            assert baba_decomp.populations == self.populations
             arr = baba_decomp.array
             components = baba_decomp.components
             symmetrized_arr = 0

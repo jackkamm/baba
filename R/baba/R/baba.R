@@ -116,7 +116,7 @@ run_sort_pops_bbaa <- function(df.filename, x, y, a){
 
 #' @import dplyr tidyr
 #' @export
-extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename){
+extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_filename = NA){
   qp.df.all <- read.table(qpDstats_cleaned_output)
 
   if (ncol(qp.df.all) == 10) {
@@ -147,6 +147,12 @@ extract_qpDstats_quartets_all <- function(qpDstats_cleaned_output, quartets_df_f
     transform(Pop2=Pop3, Pop3=Pop2, BBAA=BABA) %>%
     select(-BABA) %>%
     group_by(Pop1,Pop2,Pop3,Pop4) %>% summarize(BBAA=unique(BBAA)) %>%
-    inner_join(x=qp.df.all) %>%
-    write.table(quartets_df_filename, row.names=F, quote=F)
+    inner_join(x=qp.df.all) ->
+    qp.df.all
+
+  if (!is.na(quartets_df_filename)){
+    write.table(qp.df.all, quartets_df_filename, row.names=F, quote=F)
+  }
+
+  return(qp.df.all)
 }

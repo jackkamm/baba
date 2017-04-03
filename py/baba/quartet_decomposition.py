@@ -69,6 +69,8 @@ class quartet_decomposition(object):
         return np.reshape(self.components, -1)
 
     def data_frame(self):
+        return self.reweight()._data_frame()
+    def _data_frame(self):
         df = []
         for index, value in np.ndenumerate(self.components):
             mode, component, population = index
@@ -84,7 +86,7 @@ class quartet_decomposition(object):
     def dump(self, f):
         self.data_frame().to_csv(f, sep="\t", index=False)
 
-    def reweight(self, norm_order):
+    def reweight(self, norm_order=float('inf')):
         """
         Reweights every component to have norm 1,
         and then sorts by the component weights
@@ -110,6 +112,18 @@ class quartet_decomposition(object):
                                      weights=weights,
                                      fit_info=self.fit_info)
 
+    def reset_weights(self):
+        """
+        Returns equivalent decomposition whose weights are all 1
+        """
+        return quartet_decomposition(
+            self.populations,
+            np.einsum("ijk,j->ijk",
+                      self.components,
+                      self.weights**(.25)),
+            fit_info = self.fit_info
+        )
+
     def optimize(self, objective,
                  jac_maker=None,
                  hess_maker=None,
@@ -122,8 +136,7 @@ class quartet_decomposition(object):
                 quartet_decomposition(
                     self.populations,
                     np.reshape(flattened_components,
-                               self.components.shape),
-                    weights=self.weights))
+                               self.components.shape)))
         for key, val_maker in (
                 ("jac", jac_maker),
                 ("hess", hess_maker),
@@ -139,7 +152,7 @@ class quartet_decomposition(object):
             kwargs["bounds"] = bounds
 
         res = scipy.optimize.minimize(
-            fun, self.flattened_components, **kwargs)
+            fun, self.reset_weights().flattened_components, **kwargs)
 
         # store fit info in a format that is easily converted to json
         fit_info = co.OrderedDict(
@@ -153,6 +166,4 @@ class quartet_decomposition(object):
             self.populations,
             np.reshape(res.x, self.components.shape),
             fit_info = fit_info
-        ).reweight(norm_order=float('inf'))
-
-        return res
+        )

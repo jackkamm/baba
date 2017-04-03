@@ -177,7 +177,6 @@ class quartet_stats(object):
         def objective(baba_decomp):
             assert baba_decomp.populations == self.populations
             arr = baba_decomp.array
-            # TODO: should components be weighted by weights?
             components = baba_decomp.components
             symmetrized_arr = get_symmetrized_array(
                 arr, symmetries)

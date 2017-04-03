@@ -10,6 +10,7 @@ import scipy.stats
 import io
 import re
 import json
+import logging
 import collections as co
 from .quartet_decomposition import quartet_decomposition
 
@@ -192,9 +193,24 @@ class quartet_stats(object):
             start_decomp = quartet_decomposition(
                 self.populations, scipy.stats.uniform.rvs(size=components_size))
 
-        return start_decomp.optimize(self.make_z_baba_abba_objective(l1_penalty),
-                                     jac_maker=autograd.grad,
-                                     bounds=[0, None])
+        def fit(start, l1):
+            ret =  start.optimize(self.make_z_baba_abba_objective(l1),
+                                  jac_maker=autograd.grad,
+                                  bounds=[0, None])
+            ret.fit_info["sparsity"] = l1
+            ret.fit_info.move_to_end("sparsity", last=False)
+            return ret
+
+        try:
+            l1_penalty_list = list(l1_penalty)
+        except TypeError:
+            return fit(start_decomp, l1_penalty)
+
+        ret = [start_decomp]
+        for l1 in l1_penalty_list:
+            logging.info(f"Fitting decomposition at sparsity = {l1}")
+            ret.append(fit(ret[-1], l1))
+        return ret[1:]
 
 
 def decompose_z_baba_abba(in_file, n_components, l1_penalty,

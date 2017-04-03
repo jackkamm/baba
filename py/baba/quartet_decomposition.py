@@ -86,20 +86,22 @@ class quartet_decomposition(object):
     def dump(self, f):
         self.data_frame().to_csv(f, sep="\t", index=False)
 
-    def reweight(self, norm_order=float('inf')):
+    def reweight(self, norm_order=float('inf'), eps=1e-8):
         """
         Reweights every component to have norm 1,
         and then sorts by the component weights
         """
-        norms = np.linalg.norm(self.components,
+        components = np.array(self.components)
+        components[np.isclose(components, 0, atol=eps)] = 0
+        norms = np.linalg.norm(components,
                                ord=norm_order, axis=2)
         all0 = norms == 0
-        assert np.all(np.max(np.abs(self.components),
+        assert np.all(np.max(np.abs(components),
                              axis=2)[all0] == 0)
         norms[all0] = 1
 
         components = np.einsum("ijk,ij->ijk",
-                               self.components,
+                               components,
                                1. / norms)
         norms[all0] = 0
         weights = self.weights * np.prod(norms, axis=0)

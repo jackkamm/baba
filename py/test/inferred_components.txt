@@ -1,4 +1,4 @@
-Component	Weight	Mode	Population	Value
+Component	ComponentWeight	Leaf	Population	PopulationWeight
 1	27.0845428152	Pop1	Alaska_ancient	0.0
 1	27.0845428152	Pop1	Aleutian_masked	0.0
 1	27.0845428152	Pop1	Andaman	0.0782580925801

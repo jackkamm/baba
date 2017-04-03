@@ -17,12 +17,12 @@ def test_baba_from_qpDstat():
     path = osp.join(osp.dirname(osp.abspath(__file__)), "../../data/newhumori_18pops.qpDstats.output")
     #path = "../data/newhumori_18pops.qpDstats.output"
     with open(path) as f:
-        baba_stats = baba.baba.from_qpDstat(f)
+        baba_stats = baba.quartet_stats.from_qpDstat(f)
 
     path2 = osp.join(osp.dirname(osp.abspath(__file__)), "../../data/scratch/newhumori_18pops/all_quartets_df.txt")
     #path2 = "../data/scratch/newhumori_18pops/all_quartets_df.txt"
     df = pd.read_table(path2, sep=" ")
-    baba_stats2 = baba.baba.from_dataframe(df)
+    baba_stats2 = baba.quartet_stats.from_dataframe(df)
 
     assert np.all(baba_stats.baba == baba_stats2.baba)
     assert np.all(baba_stats.z_score == baba_stats2.z_score)

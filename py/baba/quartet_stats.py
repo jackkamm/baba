@@ -9,6 +9,9 @@ import os
 import scipy.stats
 import io
 import re
+import json
+import collections as co
+from .quartet_decomposition import quartet_decomposition
 
 
 def build_tensor(shape, idxs, vals):
@@ -17,7 +20,7 @@ def build_tensor(shape, idxs, vals):
     return ret
 
 
-class baba(object):
+class quartet_stats(object):
     @classmethod
     def from_qpDstat(cls, qpDstat_out):
         lines = []
@@ -174,6 +177,7 @@ class baba(object):
         def objective(baba_decomp):
             assert baba_decomp.populations == self.populations
             arr = baba_decomp.array
+            # TODO: should components be weighted by weights?
             components = baba_decomp.components
             symmetrized_arr = get_symmetrized_array(
                 arr, symmetries)
@@ -182,6 +186,38 @@ class baba(object):
                     + np.sum(l1_penalty * components))
 
         return objective
+
+    def decompose_z_scores(self, n_components, l1_penalty, start_decomp = None):
+        if start_decomp is None:
+            components_size = (4, n_components, len(self.populations))
+            start_decomp = quartet_decomposition(
+                self.populations, scipy.stats.uniform.rvs(size=components_size))
+
+        return start_decomp.optimize(self.make_z_baba_abba_objective(l1_penalty),
+                                     jac_maker=autograd.grad,
+                                     bounds=[0, None])
+
+
+def decompose_z_baba_abba(in_file, n_components, l1_penalty,
+                          optimization_result_file,
+                          inferred_components_file,
+                          seed=None):
+    """DEPRACATED"""
+    if seed:
+        np.random.seed(int(seed))
+    n_components = int(n_components)
+    l1_penalty = float(l1_penalty)
+
+    with open(in_file) as f:
+        ab = quartet_stats.from_qpDstat(f)
+
+    decomposition = ab.decompose_z_scores(n_components, l1_penalty)
+
+    with open(optimization_result_file, "w") as f:
+        json.dump(decomposition.fit_info, f, indent=True)
+
+    with open(inferred_components_file, "w") as f:
+        decomposition.dump(f)
 
 
 def get_permutations(from_ABs, to_ABs):

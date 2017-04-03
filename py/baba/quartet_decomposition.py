@@ -1,58 +1,10 @@
-import itertools as it
 import autograd
 import autograd.numpy as np
 import scipy
 from cached_property import cached_property
 import pandas as pd
-import os
 import scipy.stats
-from .empirical_quartets import baba
-import json
-from collections import OrderedDict
-
-
-# in_file = "../data/scratch/newhumori_18pops/all_quartets_df.txt"
-# n_components = 5
-# n_components = 10
-# l1_penalty = 100
-# l1_penalty = 10
-# outdir = "../data/scratch/newhumori_18pops/decomposition_5_100"
-# optimization_result_file = os.path.join(outdir, "optimization_result.json")
-# inferred_components_file = os.path.join(outdir, "inferred_components.txt")
-def decompose_z_baba_abba(in_file, n_components, l1_penalty,
-                          optimization_result_file,
-                          inferred_components_file,
-                          seed=None):
-    if seed:
-        np.random.seed(int(seed))
-    n_components = int(n_components)
-    l1_penalty = float(l1_penalty)
-
-    #df = pd.read_table(in_file, sep=None)
-    #ab = baba.from_dataframe(df)
-    with open(in_file) as f:
-        ab = baba.from_qpDstat(f)
-
-    components_size = (4, n_components, len(ab.populations))
-    random_baba = quartet_decomposition(
-        ab.populations, scipy.stats.uniform.rvs(size=components_size))
-    res = random_baba.optimize(ab.make_z_baba_abba_objective(l1_penalty),
-                               jac_maker=autograd.grad,
-                               bounds=[0, None])
-
-    inferred = res.quartet_decomposition
-    inferred = inferred.reweight(norm_order=float('inf'))
-
-    with open(optimization_result_file, "w") as f:
-        json.dump(OrderedDict(
-            [(k, str(res[k])) for k in ["success", "status", "message"]] +
-            [(k, int(res[k])) for k in ["nfev", "nit"]] +
-            [(k, float(res[k])) for k in ["fun"]] +
-            [(k, list(res[k])) for k in ["x", "jac"]]
-        ), f, indent=True)
-
-    with open(inferred_components_file, "w") as f:
-        inferred.dump(f)
+import collections as co
 
 
 class quartet_decomposition(object):
@@ -70,21 +22,21 @@ class quartet_decomposition(object):
                 idx_dict[val] for val in column
             ], dtype=int)
 
-        axes = ["Mode", "Component", "Population"]
+        axes = ["Leaf", "Component", "Population"]
         size = [len(set(df[a])) for a in axes]
         components = np.zeros(size)
 
-        for i, j, k, v in zip(*([get_idxs(df[col]) for col in axes] + [df["Value"]])):
+        for i, j, k, v in zip(*([get_idxs(df[col]) for col in axes] + [df["PopulationWeight"]])):
             components[i, j, k] = v
 
-        weights = [w for c, w in sorted(set(zip(df["Component"], df["Weight"])))]
+        weights = [w for c, w in sorted(set(zip(df["Component"], df["ComponentWeight"])))]
         return cls(populations, components, weights = weights)
 
     def __eq__(self, other):
         return self.populations == other.populations and np.all(self.components == other.components) and np.all(self.weights == other.weights)
 
     def __init__(self, populations, components,
-                 weights=None):
+                 weights=None, fit_info=None):
         """
         components[i,j,k], i=mode, j=component, k=population
         """
@@ -105,6 +57,8 @@ class quartet_decomposition(object):
                     "n_components", self.components.shape[1],
                     "n_weights", len(self.weights)))
 
+        self.fit_info = fit_info
+
     @cached_property
     def array(self):
         return np.einsum("i,ia,ib,ic,id->abcd", self.weights,
@@ -124,8 +78,8 @@ class quartet_decomposition(object):
                        self.populations[population],
                        value))
         return pd.DataFrame(df, columns = (
-            "Component", "Weight", "Mode",
-            "Population", "Value"))
+            "Component", "ComponentWeight", "Leaf",
+            "Population", "PopulationWeight"))
 
     def dump(self, f):
         self.data_frame().to_csv(f, sep="\t", index=False)
@@ -153,7 +107,8 @@ class quartet_decomposition(object):
         components = components[:, sort_components, :]
         return quartet_decomposition(self.populations,
                                      components,
-                                     weights=weights)
+                                     weights=weights,
+                                     fit_info=self.fit_info)
 
     def optimize(self, objective,
                  jac_maker=None,
@@ -186,8 +141,18 @@ class quartet_decomposition(object):
         res = scipy.optimize.minimize(
             fun, self.flattened_components, **kwargs)
 
-        res.quartet_decomposition = quartet_decomposition(
+        # store fit info in a format that is easily converted to json
+        fit_info = co.OrderedDict(
+            [(k, str(res[k])) for k in ["success", "status", "message"]] +
+            [(k, int(res[k])) for k in ["nfev", "nit"]] +
+            [(k, float(res[k])) for k in ["fun"]] +
+            [(k, list(res[k])) for k in ["x", "jac"]]
+        )
+
+        return quartet_decomposition(
             self.populations,
-            np.reshape(res.x, self.components.shape))
+            np.reshape(res.x, self.components.shape),
+            fit_info = fit_info
+        ).reweight(norm_order=float('inf'))
 
         return res

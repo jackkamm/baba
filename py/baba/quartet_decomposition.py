@@ -50,7 +50,7 @@ class quartet_decomposition(object):
 
         if weights is None:
             weights = np.ones(self.components.shape[1])
-        self.weights = weights
+        self.weights = np.array(weights)
         if len(self.weights) != self.components.shape[1]:
             raise ValueError(
                 "{} {} != {} {}".format(

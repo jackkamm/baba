@@ -208,11 +208,11 @@ class quartet_stats(object):
         except TypeError:
             return fit(start_decomp, l1_penalty)
 
-        ret = [start_decomp]
+        prev_decomp = start_decomp
         for l1 in l1_penalty_list:
             logging.info(f"Fitting decomposition at sparsity = {l1}")
-            ret.append(fit(ret[-1], l1))
-        return ret[1:]
+            prev_decomp = fit(prev_decomp, l1)
+            yield prev_decomp
 
 
 def decompose_z_baba_abba(in_file, n_components, l1_penalty,

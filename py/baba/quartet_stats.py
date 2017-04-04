@@ -198,6 +198,8 @@ class quartet_stats(object):
                                   jac_maker=autograd.grad,
                                   bounds=[0, None])
             ret.fit_info["sparsity"] = l1
+            ret.fit_info["l2_err"] = self.make_z_baba_abba_objective(0)(ret)
+            ret.fit_info.move_to_end("l2_err", last=False)
             ret.fit_info.move_to_end("sparsity", last=False)
             return ret
 

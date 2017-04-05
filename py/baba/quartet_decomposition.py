@@ -5,6 +5,8 @@ from cached_property import cached_property
 import pandas as pd
 import scipy.stats
 import collections as co
+import logging
+from .symmetries import get_symmetrized_array
 
 
 class quartet_decomposition(object):
@@ -31,6 +33,12 @@ class quartet_decomposition(object):
 
         weights = [w for c, w in sorted(set(zip(df["Component"], df["ComponentWeight"])))]
         return cls(populations, components, weights = weights)
+
+    @classmethod
+    def random_uniform(cls, populations, n_components):
+            components_size = (4, n_components, len(populations))
+            return cls(populations,
+                       scipy.stats.uniform.rvs(size=components_size))
 
     def __eq__(self, other):
         return self.populations == other.populations and np.all(self.components == other.components) and np.all(self.weights == other.weights)
@@ -169,3 +177,37 @@ class quartet_decomposition(object):
             np.reshape(res.x, self.components.shape),
             fit_info = fit_info
         )
+
+    def fit_decomposition(self, arr_to_decompose, symmetries, l1_penalty):
+        def make_objective(l1):
+            def objective(decomp):
+                assert decomp.populations == self.populations
+                arr = decomp.array
+                components = decomp.components
+                symmetrized_arr = get_symmetrized_array(
+                    arr, symmetries)
+
+                return (np.sum((symmetrized_arr - arr_to_decompose)**2)
+                        + np.sum(l1 * components))
+            return objective
+
+        def fit(start, l1):
+            ret =  start.optimize(make_objective(l1),
+                                  jac_maker=autograd.grad,
+                                  bounds=[0, None])
+            ret.fit_info["sparsity"] = l1
+            ret.fit_info["l2_err"] = make_objective(0)(ret)
+            ret.fit_info.move_to_end("l2_err", last=False)
+            ret.fit_info.move_to_end("sparsity", last=False)
+            return ret
+
+        try:
+            l1_penalty_list = list(l1_penalty)
+        except TypeError:
+            return fit(self, l1_penalty)
+
+        prev_decomp = self
+        for l1 in l1_penalty_list:
+            logging.info(f"Fitting decomposition at sparsity = {l1}")
+            prev_decomp = fit(prev_decomp, l1)
+            yield prev_decomp

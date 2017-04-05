@@ -13,6 +13,7 @@ import json
 import logging
 import collections as co
 from .quartet_decomposition import quartet_decomposition
+from .symmetries import get_permutations, get_symmetrized_array, is_symmetric
 
 
 def build_tensor(shape, idxs, vals):
@@ -166,7 +167,10 @@ class quartet_stats(object):
     def bbaa(self):
         return np.transpose(self.baba, [0, 2, 1, 3])
 
-    def make_z_baba_abba_objective(self, l1_penalty):
+    def decompose_z_scores(self, n_components, l1_penalty, start_decomp = None):
+        if start_decomp is None:
+            start_decomp = quartet_decomposition.random_uniform(self.populations, n_components)
+
         z_scores = np.array(self.z_score)
         # only keep bbaa > baba > abba
         z_scores[(self.bbaa < self.baba) | (self.baba < self.abba)] = 0
@@ -175,44 +179,7 @@ class quartet_stats(object):
             get_permutations("ABBA", "ABBA"))
         assert len(symmetries) == 4
 
-        def objective(baba_decomp):
-            assert baba_decomp.populations == self.populations
-            arr = baba_decomp.array
-            components = baba_decomp.components
-            symmetrized_arr = get_symmetrized_array(
-                arr, symmetries)
-
-            return (np.sum((symmetrized_arr - z_scores)**2)
-                    + np.sum(l1_penalty * components))
-
-        return objective
-
-    def decompose_z_scores(self, n_components, l1_penalty, start_decomp = None):
-        if start_decomp is None:
-            components_size = (4, n_components, len(self.populations))
-            start_decomp = quartet_decomposition(
-                self.populations, scipy.stats.uniform.rvs(size=components_size))
-
-        def fit(start, l1):
-            ret =  start.optimize(self.make_z_baba_abba_objective(l1),
-                                  jac_maker=autograd.grad,
-                                  bounds=[0, None])
-            ret.fit_info["sparsity"] = l1
-            ret.fit_info["l2_err"] = self.make_z_baba_abba_objective(0)(ret)
-            ret.fit_info.move_to_end("l2_err", last=False)
-            ret.fit_info.move_to_end("sparsity", last=False)
-            return ret
-
-        try:
-            l1_penalty_list = list(l1_penalty)
-        except TypeError:
-            return fit(start_decomp, l1_penalty)
-
-        prev_decomp = start_decomp
-        for l1 in l1_penalty_list:
-            logging.info(f"Fitting decomposition at sparsity = {l1}")
-            prev_decomp = fit(prev_decomp, l1)
-            yield prev_decomp
+        return start_decomp.fit_decomposition(z_scores, symmetries, l1_penalty)
 
 
 def decompose_z_baba_abba(in_file, n_components, l1_penalty,
@@ -237,30 +204,3 @@ def decompose_z_baba_abba(in_file, n_components, l1_penalty,
         decomposition.dump(f)
 
 
-def get_permutations(from_ABs, to_ABs):
-    return set(_get_permutations(from_ABs, to_ABs))
-
-def _get_permutations(from_ABs, to_ABs):
-    def recode(ABs):
-        return np.array([{"A": -1, "B": 1}[c] for c in ABs.upper()], dtype=int)
-    from_ABs = recode(from_ABs)
-    to_ABs = recode(to_ABs)
-    for permutation in it.permutations(range(len(from_ABs))):
-        curr = from_ABs[np.array(permutation)]
-        if np.all(curr == to_ABs) or np.all(curr == -1 * to_ABs):
-            yield permutation
-
-
-def get_symmetrized_array(arr, symmetries,
-                          accum_fun=lambda x,y: x+y):
-    symmetrized_arr = np.zeros(arr.shape)
-    for s in symmetries:
-         symmetrized_arr = accum_fun(
-             symmetrized_arr, np.transpose(arr, s))
-    return symmetrized_arr
-
-def is_symmetric(arr, symmetries, antisymm = False):
-    arr2 = get_symmetrized_array(arr, symmetries) / len(symmetries)
-    if antisymm:
-        arr2 = -1 * arr2
-    return np.allclose(arr, arr2)

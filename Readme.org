@@ -1,5 +1,9 @@
 #+TITLE: Tensor decompositions of ABBA-BABA scores
 
+* Note on viewing this Readme
+
+This Readme may not render correctly on github. I recommend viewing the PDF version, or viewing it in a text editor.
+
 * Model
 
 This repository implements a method, that takes Z-scores from qpDstat, represents them as a 4-dimensional tensor $\mathcal{Z}$,

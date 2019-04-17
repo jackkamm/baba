@@ -2,7 +2,8 @@
 
 * Note on viewing this Readme
 
-This Readme may not render correctly on github. I recommend viewing the PDF version, or viewing it in a text editor.
+This Readme may not render correctly on github. I recommend viewing the
+[[file:Readme.pdf][PDF version]], or viewing it in a text editor.
 
 * Model
 
